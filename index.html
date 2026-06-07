@@ -578,6 +578,12 @@ function newCard(){startCardEdit('new')}
 function newAcc(){startAccEdit('new')}
 function newFix(){startFEdit('new')}
 function newBen(){startBenEdit('new')}
+function newPend(){S.editPend='new';render()}
+function newInvMov(itemId,accId){openInvModal('movimentar',itemId,accId)}
+function newInvItem(accId){openInvModal('new-item',accId)}
+function invEditAcc(id){openInvModal('edit-acc',id)}
+function invEditItem(id,accId){openInvModal('edit-item',id,accId)}
+function invNewAcc(){openInvModal('new-acc')}
 /* ═══════════════════════ RENDER ═══════════════════════ */
 function render(){
   const app=document.getElementById('app');
@@ -1002,7 +1008,7 @@ function renderFixos(){
 
   if(isPend){
     if(S.editPend!==null)h+=renderPendForm();
-    else h+=`<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button class="bsm ba" onclick="S.editPend='new';render()">+ Novo</button></div>`;
+    else h+=`<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button class="bsm ba" onclick="newPend()">+ Novo</button></div>`;
     const pendList=S.pend||[];
     if(!pendList.length&&S.editPend===null)h+=`<div class="card" style="text-align:center;padding:48px 16px"><div style="font-size:42px;margin-bottom:12px">📌</div><div style="color:#7a94b4;font-weight:600;font-size:15px">Nenhum pendente cadastrado</div><div style="color:#2d4060;font-size:12px;margin-top:4px">Lembretes que não afetam suas finanças</div></div>`;
     pendList.forEach(p=>{
@@ -1121,7 +1127,7 @@ function renderInvestimentos(){
 
   let h=`<div class="hdr"><div class="hdr-row">`;
   h+=`<div><div class="hdr-title">Investimentos</div><div class="hdr-sub">Patrimônio total: ${fmt(totalBal)}</div></div>`;
-  h+=`<button class="bsm ba" onclick="openInvModal('new-acc')">+ Conta</button>`;
+  h+=`<button class="bsm ba" onclick="invNewAcc()">+ Conta</button>`;
   h+=`</div></div><div class="pg">`;
 
   // Summary hero
@@ -1163,7 +1169,7 @@ function renderInvestimentos(){
 
     if(exp){
       h+=`<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)">`;
-      h+=`<button class="bsm ba" style="margin-bottom:14px;font-size:11px" onclick="openInvModal('new-item','${acc.id}')">+ Investimento</button>`;
+      h+=`<button class="bsm ba" style="margin-bottom:14px;font-size:11px" onclick="newInvItem('${acc.id}')">+ Investimento</button>`;
 
       if(!items.length){
         h+=`<div style="text-align:center;color:#2d4060;font-size:12px;padding:12px 0">Nenhum investimento cadastrado nesta conta</div>`;
@@ -1187,8 +1193,8 @@ function renderInvestimentos(){
         h+=`<div style="text-align:right;flex-shrink:0;margin-left:10px">`;
         h+=`<div style="font-size:17px;font-weight:900;color:#10b981;margin-bottom:8px">${fmt(iBal)}</div>`;
         h+=`<div style="display:flex;gap:5px;justify-content:flex-end">`;
-        h+=`<button class="bsm ba" style="font-size:10px;padding:5px 9px" onclick="openInvModal('movimentar','${item.id}','${acc.id}')">+ Mov.</button>`;
-        h+=`<button class="ic ic-e" onclick="openInvModal('edit-item','${item.id}','${acc.id}')">✎</button>`;
+        h+=`<button class="bsm ba" style="font-size:10px;padding:5px 9px" onclick="newInvMov('${item.id}','${acc.id}')">+ Mov.</button>`;
+        h+=`<button class="ic ic-e" onclick="invEditItem('${item.id}','${acc.id}')">✎</button>`;
         h+=`<button class="ic ic-d" onclick="askDelInvItem('${item.id}','${esc(item.name)}')">✕</button>`;
         h+=`</div></div></div>`;
 
