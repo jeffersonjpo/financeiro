@@ -1030,8 +1030,8 @@ function renderFixos(){
       h+='<div style="font-size:12px;color:#4b6080">'+fmt(p.valor)+(p.parcelas>1?' · '+p.parcelas+'x de '+fmt(p.valor/p.parcelas):'')+'</div>';
       h+='</div>';
       h+='<div style="display:flex;gap:6px;flex-shrink:0;margin-left:10px">';
-      h+='<button class="ic ic-e" onclick="editPend(''+p.id+'')">✎</button>';
-      h+='<button class="ic ic-d" onclick="delPend(''+p.id+'',''+esc(p.nome)+'')">✕</button>';
+      h+='<button class="ic ic-e" onclick="editPend(\''+p.id+'\')" >✎</button>';
+      h+='<button class="ic ic-d" onclick="delPend(\''+p.id+'\',\''+esc(p.nome)+'\')" >✕</button>';
       h+='</div></div></div>';
     });
   }
