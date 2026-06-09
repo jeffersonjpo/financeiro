@@ -577,8 +577,11 @@ async function submitNew(){
 function newCard(){startCardEdit('new')}
 function newAcc(){startAccEdit('new')}
 function newFix(){startFEdit('new')}
+function startFEdit(id){if(S.fixTab==='inc')S.editFi=id;else S.editFx=id;render();}
 function newBen(){startBenEdit('new')}
 function newPend(){S.editPend='new';render()}
+function pendEdit(id){S.editPend=id;render();}
+function pendDel(id,nome){delPend(id,nome);}
 function editPend(id){S.editPend=id;render()}
 function newInvMov(itemId,accId){openInvModal('movimentar',itemId,accId)}
 function newInvItem(accId){openInvModal('new-item',accId)}
@@ -989,35 +992,45 @@ async function saveAcc(){const n=gv('af-n').trim(),t=gv('af-t'),b=parseFloat(gv(
 async function askDelAcc(id,name){confirm_(`Excluir a conta "${name}"?`,'Os lançamentos permanecem no histórico.',async()=>{await dbDel('accounts',id);toast('Conta removida!')})}
 /* ── FIXOS ── */
 function renderFixos(){
-  const isGas=S.fixTab!=='inc';
+  const tab=S.fixTab||'gas';
+  const isGas=tab==='gas', isInc=tab==='inc', isPend=tab==='pend';
   const totGas=(S.fx||[]).filter(f=>f.active).reduce((s,f)=>s+f.amount,0);
   const totInc=(S.fi||[]).filter(f=>f.active).reduce((s,f)=>s+f.amount,0);
-  let h=`<div class="hdr"><div class="hdr-row"><div><div class="hdr-title">Lançamentos Fixos</div><div class="hdr-sub">${isGas?'Gastos fixos: '+fmt(totGas):'Ganhos fixos: '+fmt(totInc)}/mês</div></div>${(isGas&&S.editFx===null)||(!isGas&&S.editFi===null)?`<button class="bsm ba" onclick="newFix()">+ Novo</button>`:''}</div></div><div class="pg">`;
-  const isPend=S.fixTab==='pend';
-  h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><button class="pill${isGas?' on':''}" onclick="S.fixTab='gas';S.editFx=null;S.editFi=null;S.editPend=null;render()">💸 Gastos</button><button class="pill${!isGas&&!isPend?' on':''}" onclick="S.fixTab='inc';S.editFx=null;S.editFi=null;S.editPend=null;render()">💰 Ganhos</button><button class="pill${isPend?' on':''}" onclick="S.fixTab='pend';S.editFx=null;S.editFi=null;S.editPend=null;render()">📌 Pendentes</button></div>`;
+  const sub=isGas?'Gastos fixos: '+fmt(totGas)+'/mês':isInc?'Ganhos fixos: '+fmt(totInc)+'/mês':'Lembretes de gastos e ganhos futuros';
+  let h='<div class="hdr"><div class="hdr-row"><div><div class="hdr-title">Lançamentos Fixos</div><div class="hdr-sub">'+sub+'</div></div>';
+  if(isGas&&S.editFx===null)h+='<button class="bsm ba" onclick="newFix()">+ Novo</button>';
+  if(isInc&&S.editFi===null)h+='<button class="bsm ba" onclick="newFix()">+ Novo</button>';
+  if(isPend&&S.editPend===null)h+='<button class="bsm ba" onclick="newPend()">+ Novo</button>';
+  h+='</div></div><div class="pg">';
+  h+='<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">';
+  h+='<button class="pill'+(isGas?' on':'')+'" onclick="S.fixTab=\'gas\';S.editFx=null;S.editFi=null;S.editPend=null;render()">💸 Gastos</button>';
+  h+='<button class="pill'+(isInc?' on':'')+'" onclick="S.fixTab=\'inc\';S.editFx=null;S.editFi=null;S.editPend=null;render()">💰 Ganhos</button>';
+  h+='<button class="pill'+(isPend?' on':'')+'" onclick="S.fixTab=\'pend\';S.editFx=null;S.editFi=null;S.editPend=null;render()">📌 Pendentes</button>';
+  h+='</div>';
   if(isGas){
     if(S.editFx!==null)h+=renderFxForm();
     const list=S.fx||[];
-    if(!list.length&&S.editFx===null)h+=`<div class="card" style="text-align:center;padding:48px 16px"><div style="font-size:42px;margin-bottom:12px">📋</div><div style="color:#7a94b4;font-weight:600;font-size:15px">Nenhum gasto fixo cadastrado</div></div>`;
-    list.forEach(f=>h+=renderFixItem(f,'gas'));
-  }else{
+    if(!list.length&&S.editFx===null)h+='<div class="card" style="text-align:center;padding:48px 16px"><div style="font-size:42px;margin-bottom:12px">📋</div><div style="color:#7a94b4;font-weight:600">Nenhum gasto fixo cadastrado</div></div>';
+    list.forEach(function(f){h+=renderFixItem(f,'gas');});
+  }
+  if(isInc){
     if(S.editFi!==null)h+=renderFiForm();
     const list=S.fi||[];
-    if(!list.length&&S.editFi===null)h+=`<div class="card" style="text-align:center;padding:48px 16px"><div style="font-size:42px;margin-bottom:12px">💰</div><div style="color:#7a94b4;font-weight:600;font-size:15px">Nenhum ganho fixo cadastrado</div><div style="color:#2d4060;font-size:12px;margin-top:4px">Ex: Salário fixo, aluguel recebido...</div></div>`;
-    list.forEach(f=>h+=renderFixItem(f,'inc'));
+    if(!list.length&&S.editFi===null)h+='<div class="card" style="text-align:center;padding:48px 16px"><div style="font-size:42px;margin-bottom:12px">💰</div><div style="color:#7a94b4;font-weight:600">Nenhum ganho fixo cadastrado</div><div style="color:#2d4060;font-size:12px;margin-top:4px">Ex: Salário fixo, aluguel recebido...</div></div>';
+    list.forEach(function(f){h+=renderFixItem(f,'inc');});
   }
-
   if(isPend){
     if(S.editPend!==null)h+=renderPendForm();
-    else{h+='<div style="display:flex;justify-content:flex-end;margin-bottom:14px">'+'<button class="bsm ba" onclick="newPend()">+ Novo</button></div>';}
-    const pendList=S.pend||[];
-    if(!pendList.length&&S.editPend===null){
+    else h+='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button class="bsm ba" onclick="newPend()">+ Novo</button></div>';
+    const list=S.pend||[];
+    if(!list.length&&S.editPend===null){
       h+='<div class="card" style="text-align:center;padding:48px 16px">';
       h+='<div style="font-size:42px;margin-bottom:12px">📌</div>';
       h+='<div style="color:#7a94b4;font-weight:600;font-size:15px">Nenhum pendente cadastrado</div>';
-      h+='<div style="color:#2d4060;font-size:12px;margin-top:4px">Lembretes que não afetam suas finanças</div></div>';
+      h+='<div style="color:#2d4060;font-size:12px;margin-top:8px;line-height:1.6">Registre gastos ou ganhos futuros que podem ou não se concretizar.<br>Não afeta saldos nem cálculos financeiros.</div>';
+      h+='</div>';
     }
-    pendList.forEach(function(p){
+    list.forEach(function(p){
       const tc=p.tipo==='gasto'?'#ef4444':'#10b981';
       const tl=p.tipo==='gasto'?'Gasto':'Ganho';
       h+='<div class="card" style="margin-bottom:10px">';
@@ -1027,16 +1040,18 @@ function renderFixos(){
       h+='<span style="font-size:14px;font-weight:700;color:#dde4f0">'+esc(p.nome)+'</span>';
       h+='<span class="badge" style="background:'+tc+'18;color:'+tc+';border:1px solid '+tc+'30">'+tl+'</span>';
       h+='</div>';
-      h+='<div style="font-size:12px;color:#4b6080">'+fmt(p.valor)+(p.parcelas>1?' · '+p.parcelas+'x de '+fmt(p.valor/p.parcelas):'')+'</div>';
+      h+='<div style="font-size:13px;font-weight:600;color:#7a94b4">'+fmt(p.valor);
+      if(p.parcelas>1)h+=' <span style="font-size:11px;color:#4b6080">· '+p.parcelas+'x de '+fmt(p.valor/p.parcelas)+'</span>';
       h+='</div>';
-      h+='<div style="display:flex;gap:6px;flex-shrink:0;margin-left:10px">';
-      h+='<button class="ic ic-e" onclick="editPend(\''+p.id+'\')" >✎</button>';
-      h+='<button class="ic ic-d" onclick="delPend(\''+p.id+'\',\''+esc(p.nome)+'\')" >✕</button>';
+      h+='<div style="font-size:11px;color:#2d4060;margin-top:2px">📌 Apenas lembrete — não afeta finanças</div>';
+      h+='</div>';
+      h+='<div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px">';
+      h+=`<button class="ic ic-e" onclick="pendEdit('${p.id}')" >✎</button>`;
+      h+=`<button class="ic ic-d" onclick="pendDel('${p.id}','${esc(p.nome)}')" >✕</button>`;
       h+='</div></div></div>';
     });
   }
-
-  h+=`</div>`;return h;
+  h+='</div>';return h;
 }
 function renderFixItem(f,type){
   const isInc=type==='inc',color=isInc?'#10b981':'#dde4f0';
