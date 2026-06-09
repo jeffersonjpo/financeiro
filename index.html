@@ -1054,25 +1054,28 @@ function renderFixos(){
   h+='</div>';return h;
 }
 function renderFixItem(f,type){
-  const isInc=type==='inc',color=isInc?'#10b981':'#dde4f0';
+  const isInc=type==='inc', color=isInc?'#10b981':'#dde4f0';
   const confList=type==='gas'?(S.fxconf||[]):(S.ficonf||[]);
   const isConf=confList.some(x=>x.fixId===f.id&&x.month===S.selM&&x.year===S.selY);
   const dueInfo=f.dueDay?' · Vence dia '+f.dueDay:'';
-  const confBadge=isConf?'<span class="badge" style="background:rgba(16,185,129,.12);color:#10b981">CONFIRMADO '+MONTHS[S.selM-1].slice(0,3)+'</span>':'';
-  const confirmBtn=f.active&&!isConf?'<button class="ic" style="background:rgba(59,130,246,.1);color:#3b82f6" onclick="openFixConfirm(\''+f.id+'\',\''+type+'\')" title="Confirmar transação">↗</button>':'';
+  const confBadge=isConf?`<span class="badge" style="background:rgba(16,185,129,.12);color:#10b981">CONFIRMADO ${MONTHS[S.selM-1].slice(0,3)}</span>`:'';
+  const confirmBtn=f.active&&!isConf?`<button class="ic" style="background:rgba(59,130,246,.1);color:#3b82f6" onclick="openFixConfirm('${f.id}','${type}')" title="Confirmar transação">↗</button>`:'';
   let h='<div class="card" style="margin-bottom:10px;opacity:'+(f.active?1:.5)+'">';
   h+='<div style="display:flex;justify-content:space-between;align-items:center">';
-  h+='<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;flex-wrap:wrap">';
-  h+='<span style="font-size:14px;font-weight:700;color:'+(f.active?color:'#4b6080')+'">'+esc(f.desc)+'</span>';
+  h+='<div style="flex:1;min-width:0">';
+  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;flex-wrap:wrap">';
+  h+=`<span style="font-size:14px;font-weight:700;color:${f.active?color:'#4b6080'}">${esc(f.desc)}</span>`;
   if(!f.active)h+='<span class="badge" style="background:rgba(255,255,255,.04);color:#4b6080">INATIVO</span>';
   h+=confBadge;
-  h+='</div><div style="font-size:11px;color:#4b6080">'+esc(f.cat)+' · A partir de '+MONTHS[(f.startMonth||1)-1]+' '+(f.startYear||CY)+dueInfo+'</div></div>';
+  h+='</div>';
+  h+=`<div style="font-size:11px;color:#4b6080">${esc(f.cat)} · A partir de ${MONTHS[(f.startMonth||1)-1]} ${f.startYear||CY}${dueInfo}</div>`;
+  h+='</div>';
   h+='<div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:10px">';
-  h+='<span style="font-size:15px;font-weight:800;color:'+color+'">'+fmt(f.amount)+'</span>';
+  h+=`<span style="font-size:15px;font-weight:800;color:${color}">${fmt(f.amount)}</span>`;
   h+=confirmBtn;
-  h+='<button class="ic ic-c" onclick="toggleFix(\''+f.id+'\',\''+type+'\')" title="'+(f.active?'Desativar':'Ativar')+'">✓</button>';
-  h+='<button class="ic ic-e" onclick="editFix(\''+f.id+'\',\''+type+'\')">✎</button>';
-  h+='<button class="ic ic-d" onclick="delFix(\''+f.id+'\',\''+type+'\',\''+esc(f.desc)+'\')">✕</button>';
+  h+=`<button class="ic ic-c" onclick="toggleFix('${f.id}','${type}')" title="${f.active?'Desativar':'Ativar'}">✓</button>`;
+  h+=`<button class="ic ic-e" onclick="editFix('${f.id}','${type}')">✎</button>`;
+  h+=`<button class="ic ic-d" onclick="delFix('${f.id}','${type}','${esc(f.desc)}')">✕</button>`;
   h+='</div></div></div>';
   return h;
 }
@@ -1136,6 +1139,37 @@ async function savePend(){
   await dbSave('pend',item);S.editPend=null;toast('Pendente salvo!');
 }
 async function delPend(id,nome){confirm_('Excluir "'+nome+'"?','',async()=>{await dbDel('pend',id);toast('Removido!')});}
+
+function startFxEdit(id){S.editFx=id;render();}
+function startFiEdit(id){S.editFi=id;render();}
+function editFix(id,type){if(type==='inc')S.editFi=id;else S.editFx=id;render();}
+async function toggleFix(id,type){
+  const col=type==='inc'?'fi':'fx';
+  const list=type==='inc'?(S.fi||[]):(S.fx||[]);
+  const f=list.find(x=>x.id===id);if(!f)return;
+  await dbSave(col,{...f,active:!f.active});
+}
+async function delFix(id,type,desc){
+  confirm_('Excluir "'+desc+'"?','',async function(){
+    await dbDel(type==='inc'?'fi':'fx',id);toast('Removido!');
+  });
+}
+async function saveFix(type){
+  const d=gv('fix-d').trim(),cat=gv('fix-c'),a=parseFloat(gv('fix-a'));
+  const sm=parseInt(gv('fix-sm')),sy=parseInt(gv('fix-sy'));
+  const dd=parseInt(gv('fix-dd'))||null;
+  if(!d){toast('Informe a descrição','err');return;}
+  if(isNaN(a)||a<=0){toast('Informe um valor válido','err');return;}
+  const col=type==='inc'?'fi':'fx';
+  const editId=type==='inc'?S.editFi:S.editFx;
+  const list=type==='inc'?(S.fi||[]):(S.fx||[]);
+  const ex=editId!=='new'?list.find(f=>f.id===editId):null;
+  const item={id:ex?ex.id:uid(),desc:d,cat,amount:a,active:ex?ex.active:true,startMonth:sm,startYear:sy,dueDay:dd,at:new Date().toISOString()};
+  if(ex&&ex._docId)item._docId=ex._docId;
+  await dbSave(col,item);
+  if(type==='inc')S.editFi=null;else S.editFx=null;
+  toast('Salvo com sucesso!');
+}
 /* ── BENEFÍCIOS ── */
 function renderBen(){
   let h='<div class="hdr"><div class="hdr-row"><div><div class="hdr-title">Benefícios</div><div class="hdr-sub">Cashbacks, pontos e carteiras</div></div>'+(S.editBen===null?'<button class="bsm ba" onclick="newBen()">+ Novo</button>':'')+'</div></div><div class="pg">';
