@@ -405,40 +405,69 @@ function nextMonth(){if(S.selM===12){S.selM=1;S.selY++}else S.selM++;render()}
 function adjYear(d){S.selY+=d;render()}
 /* ── CONFIRM FIXED TRANSACTION ── */
 let fixConfData=null;
-function openFixConfirm(fixId,type,amount,desc){
+function openFixConfirm(fixId,type){
   const fix=(type==='gas'?(S.fx||[]):(S.fi||[])).find(f=>f.id===fixId);
   if(!fix)return;
   fixConfData={fixId,type,amount:fix.amount,desc:fix.desc,cat:fix.cat};
   const m=S.selM,y=S.selY;
+  const mOpts=MONTHS.map((mn,i)=>`<option value="${i+1}"${i+1===m?' selected':''}>${mn}</option>`).join('');
+  const yOpts=[2024,2025,2026,2027,2028].map(yr=>`<option${yr===y?' selected':''}>${yr}</option>`).join('');
   let body=`<div style="font-size:17px;font-weight:900;color:#dde4f0;margin-bottom:4px">Confirmar ${type==='gas'?'Pagamento':'Recebimento'}</div>`;
   body+=`<div style="font-size:13px;color:#4b6080;margin-bottom:20px">${esc(fix.desc)} · <strong style="color:#f59e0b">${fmt(fix.amount)}</strong> · ${MONTHS[m-1]} ${y}</div>`;
   if(type==='gas'){
     const accOpts=(S.accounts||[]).map(a=>`<button onclick="doFixConfirm('debito','${a.id}','')" style="width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;cursor:pointer;margin-bottom:8px;font-family:Outfit,Arial,sans-serif"><span style="font-size:14px;font-weight:700;color:#dde4f0">${esc(a.name)}</span><span style="font-size:12px;color:#10b981">${fmt(accBal(a.id))}</span></button>`).join('');
-    const cardOpts=(S.cards||[]).map(card=>`<button onclick="doFixConfirm('credito','','${esc(card.name)}')" style="width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;cursor:pointer;margin-bottom:8px;font-family:Outfit,Arial,sans-serif"><span style="font-size:14px;font-weight:700;color:#dde4f0">💳 ${esc(card.name)}</span><span style="font-size:12px;color:#4b6080">Crédito</span></button>`).join('');
-    body+=`<div class="sec" style="margin-bottom:8px">Pago com qual conta?</div>${accOpts}`;
-    if(cardOpts)body+=`<div class="sec" style="margin-bottom:8px;margin-top:12px">Ou cartão de crédito?</div>${cardOpts}`;
-  }else{
+    const cardOpts=(S.cards||[]).map(card=>`<option value="${esc(card.name)}">${esc(card.name)}</option>`).join('');
+    body+=`<div class="sec" style="margin-bottom:8px">Conta de débito</div>${accOpts}`;
+    if(cardOpts){
+      body+=`<div class="sec" style="margin-bottom:8px;margin-top:14px">Cartão de crédito</div>`;
+      body+=`<div style="display:flex;gap:8px;margin-bottom:8px"><select id="fix-conf-card" style="flex:1">${cardOpts}</select></div>`;
+      body+=`<div style="display:flex;gap:8px;margin-bottom:10px"><select id="fix-conf-bm" style="flex:2">${mOpts}</select><select id="fix-conf-by" style="flex:1">${yOpts}</select></div>`;
+      body+=`<button onclick="doFixConfirmCard()" style="width:100%;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:12px 14px;color:#f59e0b;font-weight:700;font-size:14px;cursor:pointer;font-family:Outfit,Arial,sans-serif;margin-bottom:8px">Pagar com Cartão de Crédito</button>`;
+    }
+    body+=`<button onclick="doFixConfirm('externo','','')" style="width:100%;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px;color:#4b6080;font-weight:700;font-size:13px;cursor:pointer;font-family:Outfit,Arial,sans-serif">🔗 Externo (não altera saldos)</button>`;
+  } else {
     const accOpts=(S.accounts||[]).map(a=>`<button onclick="doFixConfirm('ganho','${a.id}','')" style="width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;cursor:pointer;margin-bottom:8px;font-family:Outfit,Arial,sans-serif"><span style="font-size:14px;font-weight:700;color:#dde4f0">${esc(a.name)}</span><span style="font-size:12px;color:#10b981">${fmt(accBal(a.id))}</span></button>`).join('');
     body+=`<div class="sec" style="margin-bottom:8px">Recebido em qual conta?</div>${accOpts}`;
+    body+=`<button onclick="doFixConfirm('externo','','')" style="width:100%;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px;color:#4b6080;font-weight:700;font-size:13px;cursor:pointer;font-family:Outfit,Arial,sans-serif">🔗 Externo (não altera saldos)</button>`;
   }
   document.getElementById('sh-pay-body').innerHTML=body;
-  document.getElementById('ov-pay').classList.add('open');document.getElementById('sh-pay').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('ov-pay').classList.add('open');
+  document.getElementById('sh-pay').classList.add('open');
+  document.body.style.overflow='hidden';
 }
 async function doFixConfirm(pm,accId,cardName){
   if(!fixConfData)return;
   const m=S.selM,y=S.selY;
   const gid=uid();
   const today=new Date().toISOString().slice(0,10);
-  if(fixConfData.type==='gas'){
-    const txItem={id:uid(),date:today,type:'gasto',desc:fixConfData.desc+' (Fixo)',cat:fixConfData.cat,amount:fixConfData.amount,pm:pm==='credito'?'credito':'debito',acc:accId,card:cardName,bm:pm==='credito'?m:0,by:pm==='credito'?y:0,paid:false,at:new Date().toISOString(),gid,iNum:1,iTotal:1};
-    await dbSave('tx',txItem);
-    await dbSave('fxconf',{id:uid(),fixId:fixConfData.fixId,month:m,year:y,txId:txItem.id});
-  }else{
-    const txItem={id:uid(),date:today,type:'ganho',desc:fixConfData.desc+' (Fixo)',cat:fixConfData.cat,amount:fixConfData.amount,pm:'',acc:accId,card:'',bm:0,by:0,paid:false,at:new Date().toISOString(),gid,iNum:1,iTotal:1};
-    await dbSave('tx',txItem);
-    await dbSave('ficonf',{id:uid(),fixId:fixConfData.fixId,month:m,year:y,txId:txItem.id});
+  if(pm!=='externo'){
+    if(fixConfData.type==='gas'){
+      const txItem={id:uid(),date:today,type:'gasto',desc:fixConfData.desc+' (Fixo)',cat:fixConfData.cat,amount:fixConfData.amount,pm:'debito',acc:accId,card:'',bm:0,by:0,paid:false,at:new Date().toISOString(),gid,iNum:1,iTotal:1};
+      await dbSave('tx',txItem);
+    }else{
+      const txItem={id:uid(),date:today,type:'ganho',desc:fixConfData.desc+' (Fixo)',cat:fixConfData.cat,amount:fixConfData.amount,pm:'',acc:accId,card:'',bm:0,by:0,paid:false,at:new Date().toISOString(),gid,iNum:1,iTotal:1};
+      await dbSave('tx',txItem);
+    }
   }
+  // Mark as confirmed this month regardless of payment method
+  const col=fixConfData.type==='gas'?'fxconf':'ficonf';
+  await dbSave(col,{id:uid(),fixId:fixConfData.fixId,month:m,year:y,txId:gid});
   fixConfData=null;toast('Transação confirmada! ✓');closePay();
+}
+async function doFixConfirmCard(){
+  if(!fixConfData)return;
+  const cardName=document.getElementById('fix-conf-card')?.value;
+  const bm=parseInt(document.getElementById('fix-conf-bm')?.value)||S.selM;
+  const by=parseInt(document.getElementById('fix-conf-by')?.value)||S.selY;
+  if(!cardName){toast('Selecione o cartão','err');return;}
+  const m=S.selM,y=S.selY;
+  const gid=uid();
+  const today=new Date().toISOString().slice(0,10);
+  const txItem={id:uid(),date:today,type:'gasto',desc:fixConfData.desc+' (Fixo)',cat:fixConfData.cat,amount:fixConfData.amount,pm:'credito',acc:'',card:cardName,bm,by,paid:false,at:new Date().toISOString(),gid,iNum:1,iTotal:1};
+  await dbSave('tx',txItem);
+  const col=fixConfData.type==='gas'?'fxconf':'ficonf';
+  await dbSave(col,{id:uid(),fixId:fixConfData.fixId,month:m,year:y,txId:gid});
+  fixConfData=null;toast('Confirmado no cartão '+cardName+'! ✓');closePay();
 }
 function cancelEdit(){S.editCard=null;S.editAcc=null;S.editFx=null;S.editFi=null;S.editBen=null;S.editPend=null;render()}
 /* ── CONFIRM ── */
@@ -972,7 +1001,7 @@ function renderCardForm(){
   </div>`
 }
 function startCardEdit(id){S.editCard=id;render()}
-async function saveCard(){const n=gv('cf-n').trim(),l=parseFloat(gv('cf-l'));if(!n){toast('Informe o nome','err');return}if(isNaN(l)||l<0){toast('Informe um limite válido','err');return}const closeDay=parseInt(gv('cf-close'))||null;const ex=S.editCard!=='new'?(S.cards||[]).find(c=>c.id===S.editCard):null;const item={id:ex?ex.id:uid(),name:n,limit:l,closeDay,dueDay};if(ex&&ex._docId)item._docId=ex._docId;await dbSave('cards',item);S.editCard=null;toast('Cartão salvo!')}
+async function saveCard(){const n=gv('cf-n').trim(),l=parseFloat(gv('cf-l'));if(!n){toast('Informe o nome','err');return}if(isNaN(l)||l<0){toast('Informe um limite válido','err');return}const closeDay=parseInt(gv('cf-close'))||null;const dueDay=parseInt(gv('cf-due'))||null;const ex=S.editCard!=='new'?(S.cards||[]).find(c=>c.id===S.editCard):null;const item={id:ex?ex.id:uid(),name:n,limit:l,closeDay,dueDay};if(ex&&ex._docId)item._docId=ex._docId;await dbSave('cards',item);S.editCard=null;toast('Cartão salvo!')}
 async function askDelCard(id,name){confirm_(`Excluir o cartão "${name}"?`,'Os lançamentos permanecem no histórico.',async()=>{await dbDel('cards',id);toast('Removido!')})}
 function toggleCardExp(id){S.expCards[id]=!S.expCards[id];render()}
 function toggleBill(k){S.expBills[k]=!S.expBills[k];render()}
